@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "concurrently \"npm run start-backend -- $npm_config_map $npm_config_bookings\" \"npm run start-frontend\"",
-    "start-backend": "ts-node backend/src/server.ts",
+    "start-backend": "npx ts-node backend/src/server.ts",
     "start-frontend": "cd frontend && npm run dev",
     "test:backend": "npm --prefix backend test",
     "test:e2e": "playwright test",

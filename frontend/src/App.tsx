@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from "react";
+import styles from "./App.module.css";
+
+// Asset imports
 import cabanaImg from "./assets/cabana.png";
 import poolImg from "./assets/pool.png";
 import chaletImg from "./assets/houseChimney.png";
@@ -26,8 +29,9 @@ const App: React.FC = () => {
   // --- API Calls ---
   const loadMap = async () => {
     try {
-      const res = await fetch("/api/map");
-      const data = await res.json();
+      const res = await fetch("http://localhost:3001/api/map");
+      if (!res.ok) throw new Error("Failed to fetch map");
+      const data: MapCell[][] = await res.json();
       setMapData(data);
     } catch (err) {
       console.error("Error loading map:", err);
@@ -35,25 +39,14 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const fetchMap = async () => {
-      try {
-        const res = await fetch("http://localhost:3001/api/map");
-        if (!res.ok) throw new Error("Failed to fetch map");
-        const data: MapCell[][] = await res.json();
-        setMapData(data);
-      } catch (err) {
-        console.error("Error loading map:", err);
-      }
-    };
-
-    fetchMap();
-  }, []); // Pusta tablica oznacza, że wywoła się tylko raz przy montowaniu
+    loadMap();
+  }, []);
 
   const handleBooking = async (row: number, col: number) => {
-    const roomNumber = window.prompt("Podaj numer swojego pokoju:");
+    const roomNumber = window.prompt("Enter your room number:");
     if (!roomNumber) return;
 
-    const guestName = window.prompt("Podaj swoje Imię i Nazwisko:");
+    const guestName = window.prompt("Enter your full name:");
     if (!guestName) return;
 
     try {
@@ -64,15 +57,15 @@ const App: React.FC = () => {
       });
 
       if (response.ok) {
-        alert("Cabana zarezerwowana! Życzymy miłego wypoczynku.");
+        alert("Cabana booked! Enjoy your stay.");
         await loadMap();
       } else {
         const errorData = await response.json();
-        alert(errorData.message || "Błąd podczas rezerwacji.");
+        alert(errorData.message || "Booking failed.");
       }
     } catch (err) {
       console.error("Connection error:", err);
-      alert("Błąd połączenia z serwerem");
+      alert("Server connection error");
     }
   };
 
@@ -134,25 +127,15 @@ const App: React.FC = () => {
 
   if (mapData.length === 0) {
     return (
-      <div
-        style={{
-          textAlign: "center",
-          padding: "40px",
-          color: "#fff",
-          background: "#3e2723",
-          height: "100vh",
-        }}
-      >
-        Ładowanie luksusowego kurortu...
-      </div>
+      <div className={styles.loadingContainer}>Loading Luxury Resort...</div>
     );
   }
 
   return (
-    <div style={containerStyle}>
-      <h1 style={headerStyle}>Luxury Resort Management</h1>
+    <div className={styles.container}>
+      <h1 className={styles.header}>Luxury Resort Management</h1>
 
-      <div style={legendContainerStyle}>
+      <div className={styles.legendContainer}>
         <LegendItem
           color="rgba(255, 215, 0, 0.85)"
           label="Available for booking"
@@ -161,12 +144,9 @@ const App: React.FC = () => {
       </div>
 
       <div
+        className={styles.mapGrid}
         style={{
-          display: "grid",
           gridTemplateColumns: `repeat(${mapData[0]?.length || 0}, 60px)`,
-          backgroundColor: "#2b1d16",
-          border: "8px solid #2b1d16",
-          boxShadow: "0 0 20px rgba(0,0,0,0.5)",
         }}
       >
         {mapData.map((row, rIdx) =>
@@ -186,8 +166,8 @@ const App: React.FC = () => {
                   !cell.isBooked &&
                   handleBooking(rIdx, cIdx)
                 }
+                className={styles.tileBase}
                 style={{
-                  ...tileBaseStyle,
                   backgroundImage:
                     cell.type === "." ? `url(${parchmentImg})` : "none",
                   backgroundColor: getCellColor(cell),
@@ -200,10 +180,8 @@ const App: React.FC = () => {
                     src={iconInfo.image}
                     onError={() => handleImageError(imageKey)}
                     alt={`${cell.type} tile`}
+                    className={styles.tileImage}
                     style={{
-                      width: "95%",
-                      height: "95%",
-                      objectFit: "contain",
                       opacity: cell.type === "#" ? 0.6 : 1,
                       filter: cell.isBooked
                         ? "grayscale(1) brightness(0.8)"
@@ -221,24 +199,14 @@ const App: React.FC = () => {
   );
 };
 
-// --- Sub-components & Styles ---
+// --- Sub-components & Helpers ---
 const LegendItem: React.FC<{ color: string; label: string }> = ({
   color,
   label,
 }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-    <div
-      style={{
-        width: "40px",
-        height: "40px",
-        backgroundColor: color,
-        border: "2px solid #fff",
-        borderRadius: "4px",
-      }}
-    />
-    <span style={{ color: "#fff", fontSize: "14px", fontFamily: "sans-serif" }}>
-      {label}
-    </span>
+  <div className={styles.legendItem}>
+    <div className={styles.legendBox} style={{ backgroundColor: color }} />
+    <span className={styles.legendLabel}>{label}</span>
   </div>
 );
 
@@ -257,40 +225,6 @@ const getCellColor = (cell: MapCell): string => {
     default:
       return "transparent";
   }
-};
-
-const containerStyle: React.CSSProperties = {
-  padding: "20px",
-  backgroundColor: "#3e2723",
-  minHeight: "100vh",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-};
-
-const headerStyle: React.CSSProperties = {
-  color: "#fff",
-  fontFamily: "serif",
-  margin: "20px 0",
-};
-
-const legendContainerStyle: React.CSSProperties = {
-  display: "flex",
-  gap: "30px",
-  marginBottom: "20px",
-};
-
-const tileBaseStyle: React.CSSProperties = {
-  width: "60px",
-  height: "60px",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  border: "0.1px solid rgba(0,0,0,0.05)",
-  position: "relative",
-  overflow: "hidden",
 };
 
 export default App;
