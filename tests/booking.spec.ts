@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import bookings from "../bookings.json";
+test.describe.configure({ mode: "serial" });
 
 /**
  * CONFIGURATION:
@@ -14,10 +15,8 @@ const testSubset = bookings.slice(0, TEST_LIMIT);
  * Iterates through a subset of bookings.json to verify the booking flow.
  */
 for (const booking of testSubset) {
-  test(`should successfully book room ${booking.room} for ${booking.guestName}`, async ({
-    page,
-  }) => {
-    await page.goto("http://localhost:5173");
+  test(`should successfully book room ${booking.room}`, async ({ page }) => {
+    await page.goto("/");
 
     // 1. Identify: Find the first available (golden) cabana image
     // We filter out any images that already have the 'grayscale' filter applied
