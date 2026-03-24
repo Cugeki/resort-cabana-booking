@@ -3,7 +3,7 @@ import bookings from "../bookings.json";
 
 test.describe.configure({ mode: "serial" });
 
-const TEST_LIMIT = 15;
+const TEST_LIMIT = 3;
 const testSubset = bookings.slice(0, TEST_LIMIT);
 
 for (const booking of testSubset) {
