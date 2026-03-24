@@ -37,7 +37,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchMap = async () => {
       try {
-        const res = await fetch("/api/map");
+        const res = await fetch("http://localhost:3001/api/map");
         if (!res.ok) throw new Error("Failed to fetch map");
         const data: MapCell[][] = await res.json();
         setMapData(data);

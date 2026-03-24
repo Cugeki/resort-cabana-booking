@@ -17,6 +17,12 @@ const testSubset = bookings.slice(0, TEST_LIMIT);
 for (const booking of testSubset) {
   test(`should successfully book room ${booking.room}`, async ({ page }) => {
     await page.goto("/");
+    await expect(page.getByText("Luxury Resort Management")).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.locator("[data-testid='map-tile']").first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // 1. Identify: Find the first available (golden) cabana image
     // We filter out any images that already have the 'grayscale' filter applied
