@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styles from "./App.module.css";
 
-// Asset imports
 import cabanaImg from "./assets/cabana.png";
 import poolImg from "./assets/pool.png";
 import chaletImg from "./assets/houseChimney.png";
@@ -10,8 +9,8 @@ import arrowStraight from "./assets/arrowStraight.png";
 import arrowCorner from "./assets/arrowCornerSquare.png";
 import arrowCrossing from "./assets/arrowCrossing.png";
 import arrowSplit from "./assets/arrowSplit.png";
+import BookingModal from "./components/BookingModal";
 
-// --- Interfaces ---
 interface MapCell {
   type: string;
   isBooked: boolean;
@@ -26,7 +25,18 @@ const App: React.FC = () => {
   const [mapData, setMapData] = useState<MapCell[][]>([]);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
-  // --- API Calls ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTile, setSelectedTile] = useState<{
+    r: number;
+    c: number;
+  } | null>(null);
+  const [guestName, setGuestName] = useState("");
+  const [roomNumber, setRoomNumber] = useState("");
+  const [bookingStatus, setBookingStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+
   const loadMap = async () => {
     try {
       const res = await fetch("http://localhost:3001/api/map");
@@ -42,30 +52,46 @@ const App: React.FC = () => {
     loadMap();
   }, []);
 
-  const handleBooking = async (row: number, col: number) => {
-    const roomNumber = window.prompt("Enter your room number:");
-    if (!roomNumber) return;
+  const handleOpenModal = (row: number, col: number) => {
+    setSelectedTile({ r: row, c: col });
+    setBookingStatus("idle");
+    setGuestName("");
+    setRoomNumber("");
+    setErrorMessage("");
+    setIsModalOpen(true);
+  };
 
-    const guestName = window.prompt("Enter your full name:");
-    if (!guestName) return;
+  const handleConfirmBooking = async () => {
+    if (!selectedTile || !guestName || !roomNumber) return;
+
+    setBookingStatus("loading");
 
     try {
       const response = await fetch("http://localhost:3001/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ row, col, guestName, roomNumber }),
+        body: JSON.stringify({
+          row: selectedTile.r,
+          col: selectedTile.c,
+          guestName,
+          roomNumber,
+        }),
       });
 
       if (response.ok) {
-        alert("Cabana booked! Enjoy your stay.");
+        setBookingStatus("success");
+        setGuestName("");
+        setRoomNumber("");
         await loadMap();
       } else {
         const errorData = await response.json();
-        alert(errorData.message || "Booking failed.");
+        setErrorMessage(errorData.message || "Booking failed.");
+        setBookingStatus("error");
       }
     } catch (err) {
-      console.error("Connection error:", err);
-      alert("Server connection error");
+      console.error("Booking error details:", err);
+      setErrorMessage("Server connection error");
+      setBookingStatus("error");
     }
   };
 
@@ -75,7 +101,6 @@ const App: React.FC = () => {
     const bottom = mapData[r + 1]?.[c]?.type === "#";
     const left = mapData[r]?.[c - 1]?.type === "#";
     const right = mapData[r]?.[c + 1]?.type === "#";
-
     if (top || bottom) return 0;
     if (left || right) return 90;
     return 0;
@@ -89,13 +114,11 @@ const App: React.FC = () => {
     if (cell.type === "W") return { image: cabanaImg, rotation: 0 };
     if (cell.type === "p") return { image: poolImg, rotation: 0 };
     if (cell.type === "c") return { image: chaletImg, rotation: 0 };
-
     if (cell.type === "#") {
       const top = mapData[r - 1]?.[c]?.type === "#";
       const bottom = mapData[r + 1]?.[c]?.type === "#";
       const left = mapData[r]?.[c - 1]?.type === "#";
       const right = mapData[r]?.[c + 1]?.type === "#";
-
       if (top && bottom && left && right)
         return { image: arrowCrossing, rotation: 0 };
       if (top && bottom && right && !left)
@@ -106,7 +129,6 @@ const App: React.FC = () => {
         return { image: arrowSplit, rotation: 90 };
       if (left && right && top && !bottom)
         return { image: arrowSplit, rotation: 270 };
-
       if (bottom && right && !top && !left)
         return { image: arrowCorner, rotation: 90 };
       if (bottom && left && !top && !right)
@@ -115,14 +137,9 @@ const App: React.FC = () => {
         return { image: arrowCorner, rotation: 270 };
       if (top && right && !bottom && !left)
         return { image: arrowCorner, rotation: 0 };
-
       return { image: arrowStraight, rotation: getRoadRotation(r, c) };
     }
     return null;
-  };
-
-  const handleImageError = (imageKey: string) => {
-    setImageErrors((prev) => new Set(prev).add(imageKey));
   };
 
   if (mapData.length === 0) {
@@ -153,8 +170,6 @@ const App: React.FC = () => {
           row.map((cell, cIdx) => {
             const iconInfo = getTileIcon(cell, rIdx, cIdx);
             const imageKey = `${rIdx}-${cIdx}`;
-            const hasImageError = imageErrors.has(imageKey);
-
             return (
               <div
                 key={imageKey}
@@ -164,7 +179,7 @@ const App: React.FC = () => {
                 onClick={() =>
                   cell.type === "W" &&
                   !cell.isBooked &&
-                  handleBooking(rIdx, cIdx)
+                  handleOpenModal(rIdx, cIdx)
                 }
                 className={styles.tileBase}
                 style={{
@@ -175,11 +190,13 @@ const App: React.FC = () => {
                     cell.type === "W" && !cell.isBooked ? "pointer" : "default",
                 }}
               >
-                {iconInfo && !hasImageError && (
+                {iconInfo && !imageErrors.has(imageKey) && (
                   <img
                     src={iconInfo.image}
-                    onError={() => handleImageError(imageKey)}
-                    alt={`${cell.type} tile`}
+                    onError={() =>
+                      setImageErrors((prev) => new Set(prev).add(imageKey))
+                    }
+                    alt="tile"
                     className={styles.tileImage}
                     style={{
                       opacity: cell.type === "#" ? 0.6 : 1,
@@ -195,11 +212,22 @@ const App: React.FC = () => {
           }),
         )}
       </div>
+
+      <BookingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirmBooking}
+        guestName={guestName}
+        setGuestName={setGuestName}
+        roomNumber={roomNumber}
+        setRoomNumber={setRoomNumber}
+        bookingStatus={bookingStatus}
+        errorMessage={errorMessage}
+      />
     </div>
   );
 };
 
-// --- Sub-components & Helpers ---
 const LegendItem: React.FC<{ color: string; label: string }> = ({
   color,
   label,

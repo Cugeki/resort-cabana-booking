@@ -1,84 +1,73 @@
 import { test, expect } from "@playwright/test";
 import bookings from "../bookings.json";
+
 test.describe.configure({ mode: "serial" });
 
-/**
- * CONFIGURATION:
- * Set how many bookings from the JSON file should be tested.
- * Default is 3 to keep the test suite fast (Smoke Testing).
- */
-const TEST_LIMIT = 3;
+const TEST_LIMIT = 15;
 const testSubset = bookings.slice(0, TEST_LIMIT);
 
-/**
- * DATA-DRIVEN TEST SUITE
- * Iterates through a subset of bookings.json to verify the booking flow.
- */
 for (const booking of testSubset) {
   test(`should successfully book room ${booking.room}`, async ({ page }) => {
     await page.goto("/");
+
+    // 1. Wait for the app to load
     await expect(page.getByText("Luxury Resort Management")).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.locator("[data-testid='map-tile']").first()).toBeVisible({
-      timeout: 15000,
-    });
 
-    // 1. Identify: Find the first available (golden) cabana image
-    // We filter out any images that already have the 'grayscale' filter applied
-    const targetImage = page
-      .getByRole("img", { name: "W tile" })
+    // 2. Identify the first available cabana tile
+    const tileContainer = page
+      .locator("div[data-testid='map-tile']")
       .filter({
-        hasNot: page.locator("xpath=self::*[contains(@style, 'grayscale')]"),
+        has: page.locator("img[alt='tile']"),
+      })
+      .filter({
+        // Only Cabanas have cursor pointer in your App.tsx
+        has: page.locator("xpath=self::*[contains(@style, 'pointer')]"),
+      })
+      .filter({
+        // Filter out already booked ones
+        hasNot: page.locator("img[style*='grayscale']"),
       })
       .first();
 
-    // 2. Metadata: Locate the parent container to extract grid coordinates
-    // Using .first() to comply with Playwright's strict mode
-    const tileContainer = page
-      .locator("div[data-testid='map-tile']")
-      .filter({ has: targetImage })
-      .first();
-
+    // 3. Metadata: Extract coordinates
+    await expect(tileContainer).toBeAttached({ timeout: 10000 });
     const row = await tileContainer.getAttribute("data-row");
     const col = await tileContainer.getAttribute("data-col");
 
     console.log(
-      `📡 Testing: ${booking.guestName} (Room ${booking.room}) at [Row: ${row}, Col: ${col}]`,
+      `📡 Testing: ${booking.guestName} at [Row: ${row}, Col: ${col}]`,
     );
 
-    // 3. Dialog Handling: Dynamic responses based on the current JSON record
-    page.on("dialog", async (dialog) => {
-      const msg = dialog.message().toLowerCase();
+    // 4. Interaction: Click the tile to open modal
+    // Clicking the container is more reliable than the image itself
+    await tileContainer.click();
 
-      if (msg.includes("pokoju") || msg.includes("room")) {
-        await dialog.accept(booking.room);
-      } else if (
-        msg.includes("imię") ||
-        msg.includes("nazwisko") ||
-        msg.includes("name")
-      ) {
-        await dialog.accept(booking.guestName);
-      } else {
-        // Confirmation alert "Cabana zarezerwowana!"
-        await dialog.accept();
-      }
-    });
+    // 5. Modal Interaction
+    const nameInput = page.getByPlaceholder("e.g. Alice Smith");
+    const roomInput = page.getByPlaceholder("e.g. 101");
 
-    // 4. Interaction: Perform the click action
-    console.log("🖱️ Clicking on the available cabana...");
-    await targetImage.click();
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await nameInput.fill(booking.guestName);
+    await roomInput.fill(booking.room);
 
-    // 5. Validation: Targeted check using coordinates
-    // We re-select the tile by row/col to verify the state change independently
-    const specificCabanaAfter = page
-      .locator(`div[data-row="${row}"][data-col="${col}"]`)
-      .getByRole("img");
+    await page.getByRole("button", { name: "Confirm Booking" }).click();
 
-    await expect(specificCabanaAfter).toHaveCSS("filter", /grayscale/, {
-      timeout: 10000,
-    });
+    // 6. Verify Success and Close
+    await expect(page.getByText("Booking Confirmed!")).toBeVisible();
+    await page.getByRole("button", { name: "Great!" }).click();
 
-    console.log(`🎉 Success: Room ${booking.room} is now grayed out.`);
+    // 7. Validation: Check if the specific tile is now grayed out
+    // Instead of toHaveCSS, we check if the image style attribute now contains 'grayscale'
+    const specificCabanaImg = page.locator(
+      `div[data-row="${row}"][data-col="${col}"] img`,
+    );
+
+    await expect(specificCabanaImg).toHaveAttribute("style", /grayscale/);
+
+    console.log(
+      `🎉 Success: Room ${booking.room} at [${row},${col}] is now booked.`,
+    );
   });
 }
