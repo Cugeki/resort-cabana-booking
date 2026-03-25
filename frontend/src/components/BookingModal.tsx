@@ -24,10 +24,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
   bookingStatus,
   errorMessage,
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div className={styles.modalOverlay}>
+    <div className={`${styles.modalOverlay} ${isOpen ? styles.active : ""}`}>
       <div className={styles.modalContent}>
         {bookingStatus === "success" && (
           <div style={{ textAlign: "center" }}>

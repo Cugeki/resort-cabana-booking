@@ -144,3 +144,54 @@
 .btnConfirm:hover {
   background-color: #5d4037;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalContent {
+  animation: fadeIn 0.3s ease-out;
+  /* Twoje reszta stylów */
+}
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+
+  /* Ukrywamy domyślnie */
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.modalOverlay.active {
+  /* Pokazujemy po dodaniu klasy active */
+  opacity: 1;
+  visibility: visible;
+}
+
+.modalContent {
+  background: #f4e4bc; /* Twój kolor pergaminu */
+  padding: 30px;
+  border-radius: 8px;
+  transform: translateY(-20px);
+  transition: transform 0.3s ease-in-out;
+}
+
+.modalOverlay.active .modalContent {
+  transform: translateY(0);
+}
