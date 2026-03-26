@@ -24,6 +24,7 @@ To run the tests:
 1. Ensure the app is running (`npm start`).
 2. Open a new terminal and run:
    ```bash
+   npx playwright install
    npx playwright test
    To see the tests in action (UI Mode):
    ```
